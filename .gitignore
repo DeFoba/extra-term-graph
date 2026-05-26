@@ -1,0 +1,27 @@
+# Neo4j credentials file (contains sensitive plain-text password)
+Neo4j-*.txt
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Raw data and generated datasets (highly recommended to exclude from version control)
+articles/
+corpus/
+graph_export/
+
+# Virtual environment (in case one is created locally)
+.venv/
+venv/
+env/
+ENV/
+
+# Local editor/IDE configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
