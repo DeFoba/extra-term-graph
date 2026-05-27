@@ -148,7 +148,7 @@ def compute_soft_metrics(extracted_list, author_list, k):
     
     recall_sum = 0.0
     for auth_kw in author_list:
-        best_sim = max(compute_jaccard_similarity(ext_kw, auth_kw) for auth_kw in extracted_k)
+        best_sim = max(compute_jaccard_similarity(ext_kw, auth_kw) for ext_kw in extracted_k)
         recall_sum += best_sim
     recall = recall_sum / len(author_list)
     

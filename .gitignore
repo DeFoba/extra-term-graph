@@ -11,6 +11,10 @@ articles/
 corpus/
 graph_export/
 
+# Report and template files (not part of the codebase)
+report/
+template_report.txt
+
 # Virtual environment (in case one is created locally)
 .venv/
 venv/
