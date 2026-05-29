@@ -157,7 +157,7 @@ def compute_soft_metrics(extracted_list, author_list, k):
 
 def extract_and_evaluate_keywords(workspace_dir, model_name='mlsa-iai-msu-lab/sci-rus-tiny', max_articles=None):
     corpus_dir = os.path.join(workspace_dir, "corpus")
-    summary_json_path = os.path.join(workspace_dir, "corpus.json")
+    summary_json_path = os.path.join(corpus_dir, "corpus.json")
     
     if not os.path.exists(summary_json_path):
         raise FileNotFoundError(f"Consolidated index '{summary_json_path}' not found.")
@@ -298,6 +298,7 @@ def extract_and_evaluate_keywords(workspace_dir, model_name='mlsa-iai-msu-lab/sc
         summary_enriched.append({
             "filename": art_data["filename"],
             "title": art_data["title"],
+            "authors": art_data.get("authors", []),
             "keywords": art_data["keywords"],
             "keywords_tfidf": art_data["keywords_tfidf"],
             "keywords_keybert": art_data["keywords_keybert"],

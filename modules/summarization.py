@@ -229,7 +229,7 @@ def generate_extractive_summary(filtered_sentences, keywords, num_sentences=4, l
 
 def generate_and_evaluate_summaries(workspace_dir, max_articles=None):
     corpus_dir = os.path.join(workspace_dir, "corpus")
-    summary_json_path = os.path.join(workspace_dir, "corpus.json")
+    summary_json_path = os.path.join(corpus_dir, "corpus.json")
     
     if not os.path.exists(summary_json_path):
         raise FileNotFoundError(f"Consolidated index '{summary_json_path}' not found.")
@@ -310,6 +310,7 @@ def generate_and_evaluate_summaries(workspace_dir, max_articles=None):
         summary_enriched.append({
             "filename": item["filename"],
             "title": item["title"],
+            "authors": item.get("authors", []),
             "keywords": item["keywords"],
             "keywords_tfidf": item["keywords_tfidf"],
             "keywords_keybert": item["keywords_keybert"],

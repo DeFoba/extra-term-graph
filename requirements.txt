@@ -8,3 +8,4 @@ scikit-learn>=1.2.0
 keybert>=0.8.0
 sentence-transformers>=2.2.0
 neo4j>=5.15.0
+flask>=3.0.0

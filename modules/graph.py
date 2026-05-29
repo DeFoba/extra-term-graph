@@ -3,7 +3,6 @@ import re
 import json
 import csv
 import pymorphy3
-import numpy as np
 from tqdm import tqdm
 
 morph = pymorphy3.MorphAnalyzer()
@@ -24,7 +23,7 @@ def normalize_phrase(phrase):
 
 def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_threshold=0.85, max_articles=None):
     corpus_dir = os.path.join(workspace_dir, "corpus")
-    summary_json_path = os.path.join(workspace_dir, "corpus.json")
+    summary_json_path = os.path.join(corpus_dir, "corpus.json")
     export_dir = os.path.join(workspace_dir, "graph_export")
     
     if not os.path.exists(summary_json_path):
@@ -55,6 +54,9 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         
         summary_tfidf = ""
         summary_keybert = ""
+        kw_tfidf = []
+        kw_keybert = []
+        
         if os.path.exists(json_path):
             try:
                 with open(json_path, "r", encoding="utf-8") as ajf:
@@ -62,6 +64,8 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
                     summarization = art_data.get("summarization", {})
                     summary_tfidf = summarization.get("summary_tfidf", "")
                     summary_keybert = summarization.get("summary_keybert", "")
+                    kw_tfidf = art_data.get("keywords_tfidf", [])
+                    kw_keybert = art_data.get("keywords_keybert", [])
             except Exception as e:
                 print(f"Warning reading {filename}: {e}")
                 
@@ -69,6 +73,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         publications.append({
             "id": pub_id,
             "title": title,
+            "authors": "; ".join(item.get("authors", [])),
             "annotation": annotation,
             "summary_tfidf": summary_tfidf,
             "summary_keybert": summary_keybert
@@ -76,8 +81,8 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         
         kw_sources = [
             ("author", item.get("keywords", []), None),
-            ("tfidf", item.get("keywords_tfidf", []), None),
-            ("keybert", item.get("keywords_keybert", []), None)
+            ("tfidf", kw_tfidf, None),
+            ("keybert", kw_keybert, None)
         ]
         
         for method, kw_list, _ in kw_sources:
@@ -116,54 +121,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         kw_info["display_name"] = best_spelling[0].upper() + best_spelling[1:] if best_spelling else norm_id
         
     print(f"Found {len(unique_keywords)} unique keywords after morphological normalization.")
-    
-    print(f"\nComputing semantic similarities between keywords (threshold >= {similarity_threshold})...")
-    keyword_keyword_rels = []
-    
-    try:
-        from sentence_transformers import SentenceTransformer
-        model = SentenceTransformer('mlsa-iai-msu-lab/sci-rus-tiny')
-        unique_norm_ids = list(unique_keywords.keys())
-        natural_phrases = [unique_keywords[nid]["display_name"] for nid in unique_norm_ids]
-        
-        print("Encoding phrases...")
-        embeddings = model.encode(natural_phrases, show_progress_bar=True, batch_size=64)
-        
-        print("Calculating similarity matrix...")
-        norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-        norm_embeddings = embeddings / (norms + 1e-9)
-        similarity_matrix = np.dot(norm_embeddings, norm_embeddings.T)
-        
-        for i in range(len(unique_norm_ids)):
-            for j in range(i + 1, len(unique_norm_ids)):
-                score = float(similarity_matrix[i, j])
-                if score >= similarity_threshold:
-                    keyword_keyword_rels.append({
-                        "source": unique_norm_ids[i],
-                        "target": unique_norm_ids[j],
-                        "score": round(score, 4)
-                    })
-        print(f"Generated {len(keyword_keyword_rels)} semantic similarity links between keywords.")
-        
-    except Exception as e:
-        print(f"Warning: Could not compute semantic similarity via SentenceTransformers: {e}")
-        print("Fallback: Creating keyword similarity based on token overlap.")
-        unique_norm_ids = list(unique_keywords.keys())
-        for i in range(len(unique_norm_ids)):
-            tokens_i = set(unique_norm_ids[i].split())
-            for j in range(i + 1, len(unique_norm_ids)):
-                tokens_j = set(unique_norm_ids[j].split())
-                intersection = tokens_i.intersection(tokens_j)
-                union = tokens_i.union(tokens_j)
-                if intersection and union:
-                    jaccard = len(intersection) / len(union)
-                    if jaccard >= 0.5:
-                        keyword_keyword_rels.append({
-                            "source": unique_norm_ids[i],
-                            "target": unique_norm_ids[j],
-                            "score": round(jaccard, 4)
-                        })
-        print(f"Generated {len(keyword_keyword_rels)} token-overlap links between keywords.")
 
     print(f"\nComputing document similarity based on keyword overlap (threshold >= {jaccard_threshold})...")
     pub_pub_rels = []
@@ -200,37 +157,33 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
                 
     print(f"Generated {len(pub_pub_rels)} publication similarity links.")
 
-    print("\nComputing keyword hierarchical relationships (sub-terms)...")
-    keyword_hierarchy_rels = []
-    unique_norm_ids = list(unique_keywords.keys())
-    
-    single_word_kws = {nid for nid in unique_norm_ids if len(nid.split()) == 1}
-    
-    for nid in unique_norm_ids:
-        tokens = set(nid.split())
-        for sw in single_word_kws:
-            if sw != nid and sw in tokens:
-                keyword_hierarchy_rels.append({
-                    "source": nid,
-                    "target": sw
-                })
-    print(f"Generated {len(keyword_hierarchy_rels)} keyword hierarchy links.")
+    # Determine dominant method for each keyword (for coloring in Neo4j)
+    kw_method_map = {}
+    for r in pub_keyword_rels:
+        nid = r["keyword_id"]
+        method = r["method"]
+        if nid not in kw_method_map:
+            kw_method_map[nid] = set()
+        kw_method_map[nid].add(method)
+    for nid, info in unique_keywords.items():
+        methods = kw_method_map.get(nid, set())
+        info["methods"] = ",".join(sorted(methods))
 
     print(f"\nWriting CSV graph nodes & edges to: {export_dir}")
     
     pub_csv_path = os.path.join(export_dir, "publications.csv")
     with open(pub_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["id", "title", "annotation", "summary_tfidf", "summary_keybert"])
+        writer.writerow(["id", "title", "authors", "annotation", "summary_tfidf", "summary_keybert"])
         for p in publications:
-            writer.writerow([p["id"], p["title"], p["annotation"], p["summary_tfidf"], p["summary_keybert"]])
+            writer.writerow([p["id"], p["title"], p["authors"], p["annotation"], p["summary_tfidf"], p["summary_keybert"]])
             
     kw_csv_path = os.path.join(export_dir, "keywords.csv")
     with open(kw_csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["id", "name"])
+        writer.writerow(["id", "name", "methods"])
         for nid, info in unique_keywords.items():
-            writer.writerow([nid, info["display_name"]])
+            writer.writerow([nid, info["display_name"], info.get("methods", "")])
             
     pub_kw_csv_path = os.path.join(export_dir, "rel_pub_keyword.csv")
     with open(pub_kw_csv_path, "w", newline="", encoding="utf-8") as f:
@@ -246,24 +199,12 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         for r in pub_pub_rels:
             writer.writerow([r["source"], r["target"], r["score"]])
             
-    kw_kw_csv_path = os.path.join(export_dir, "rel_keyword_keyword.csv")
-    with open(kw_kw_csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["source", "target", "score"])
-        for r in keyword_keyword_rels:
-            writer.writerow([r["source"], r["target"], r["score"]])
-            
-    kw_hier_csv_path = os.path.join(export_dir, "rel_keyword_hierarchy.csv")
-    with open(kw_hier_csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["source", "target"])
-        for r in keyword_hierarchy_rels:
-            writer.writerow([r["source"], r["target"]])
-            
-    cypher_path = os.path.join(workspace_dir, "import_csv.cypher")
-    print(f"Generating Neo4j LOAD CSV script: {cypher_path}")
+
+    # Generate Cypher LOAD CSV Script for Aura DB in the graph_export directory
+    cypher_script_path = os.path.join(export_dir, "import_csv.cypher")
+    print(f"Generating Neo4j LOAD CSV script: {cypher_script_path}")
     
-    with open(cypher_path, "w", encoding="utf-8") as f:
+    with open(cypher_script_path, "w", encoding="utf-8") as f:
         f.write("// --- Neo4j CSV Import Script ---\n")
         f.write("// Instructions: Place the CSV files from 'graph_export/' into your Neo4j Import folder,\n")
         f.write("// or set your own file path prefix (e.g. file:///rel_pub_pub.csv).\n\n")
@@ -280,10 +221,10 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         f.write("    p.summary_tfidf = row.summary_tfidf,\n")
         f.write("    p.summary_keybert = row.summary_keybert;\n\n")
         
-        f.write("// 3. Import Keyword Nodes\n")
+        f.write("// 3. Import Keyword Nodes (with methods for color-coding)\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///keywords.csv' AS row\n")
         f.write("MERGE (k:Keyword {id: row.id})\n")
-        f.write("SET k.name = row.name;\n\n")
+        f.write("SET k.name = row.name, k.methods = row.methods;\n\n")
         
         f.write("// 4. Import Publication-Keyword Relationships\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_pub_keyword.csv' AS row\n")
@@ -297,17 +238,10 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         f.write("MATCH (p2:Publication {id: row.target})\n")
         f.write("CREATE (p1)-[:SIMILAR_TO {score: toFloat(row.score)}]->(p2);\n\n")
         
-        f.write("// 6. Import Keyword Semantic Similarity Relationships\n")
-        f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_keyword_keyword.csv' AS row\n")
-        f.write("MATCH (k1:Keyword {id: row.source})\n")
-        f.write("MATCH (k2:Keyword {id: row.target})\n")
-        f.write("CREATE (k1)-[:SEMANTICALLY_SIMILAR {score: toFloat(row.score)}]->(k2);\n\n")
-        
-        f.write("// 7. Import Keyword Hierarchy (SUB_TERM_OF) Relationships\n")
-        f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_keyword_hierarchy.csv' AS row\n")
-        f.write("MATCH (k2:Keyword {id: row.source})\n")
-        f.write("MATCH (k1:Keyword {id: row.target})\n")
-        f.write("CREATE (k2)-[:SUB_TERM_OF]->(k1);\n")
+        f.write("// 6. Assign color labels to Keywords by extraction method\n")
+        f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'author' SET k:AuthorKW;\n")
+        f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'tfidf' SET k:TFIDFKW;\n")
+        f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'keybert' SET k:KeyBERTKW;\n\n")
 
     print("\nAttempting to connect and upload to Neo4j database...")
     
@@ -338,7 +272,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
     
     if not neo4j_password:
         print("Neo4j password not found in environment or file. Skipping database upload.")
-        return len(pub_pub_rels), len(keyword_keyword_rels)
+        return len(pub_pub_rels), 0
         
     try:
         from neo4j import GraphDatabase
@@ -379,7 +313,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
             tx.run("""
             UNWIND $batch AS k
             MERGE (kw:Keyword {id: k.id})
-            SET kw.name = k.name
+            SET kw.name = k.name, kw.methods = k.methods
             """, batch=batch)
             
         def upload_pub_kw(tx, batch):
@@ -398,23 +332,9 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
             CREATE (p1)-[:SIMILAR_TO {score: r.score}]->(p2)
             """, batch=batch)
             
-        def upload_kw_kw(tx, batch):
-            tx.run("""
-            UNWIND $batch AS r
-            MATCH (k1:Keyword {id: r.source})
-            MATCH (k2:Keyword {id: r.target})
-            CREATE (k1)-[:SEMANTICALLY_SIMILAR {score: r.score}]->(k2)
-            """, batch=batch)
+
             
-        def upload_kw_hier(tx, batch):
-            tx.run("""
-            UNWIND $batch AS r
-            MATCH (k2:Keyword {id: r.source})
-            MATCH (k1:Keyword {id: r.target})
-            CREATE (k2)-[:SUB_TERM_OF]->(k1)
-            """, batch=batch)
-            
-        nodes_keywords = [{"id": nid, "name": info["display_name"]} for nid, info in unique_keywords.items()]
+        nodes_keywords = [{"id": nid, "name": info["display_name"], "methods": info.get("methods", "")} for nid, info in unique_keywords.items()]
         
         with driver.session() as session:
             session.execute_write(create_constraints)
@@ -435,14 +355,13 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
             print("Uploading publication similarity links...")
             for i in range(0, len(pub_pub_rels), 500):
                 session.execute_write(upload_pub_pub, pub_pub_rels[i:i+500])
-                
-            print("Uploading keyword semantic similarity links...")
-            for i in range(0, len(keyword_keyword_rels), 500):
-                session.execute_write(upload_kw_kw, keyword_keyword_rels[i:i+500])
-                
-            print("Uploading keyword hierarchical relationships...")
-            for i in range(0, len(keyword_hierarchy_rels), 500):
-                session.execute_write(upload_kw_hier, keyword_hierarchy_rels[i:i+500])
+            
+            print("Assigning color labels to keywords...")
+            def assign_kw_labels(tx):
+                tx.run("MATCH (k:Keyword) WHERE k.methods CONTAINS 'author' SET k:AuthorKW")
+                tx.run("MATCH (k:Keyword) WHERE k.methods CONTAINS 'tfidf' SET k:TFIDFKW")
+                tx.run("MATCH (k:Keyword) WHERE k.methods CONTAINS 'keybert' SET k:KeyBERTKW")
+            session.execute_write(assign_kw_labels)
                 
         driver.close()
         print("\n=== Graph Ingested and Uploaded to Neo4j Successfully! ===")
@@ -452,4 +371,4 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         print(f"\nConnection to Neo4j database failed: {e}. Skipping database upload.")
         
     print("\n--- Graph Export Stage Completed ---")
-    return len(pub_pub_rels), len(keyword_keyword_rels)
+    return len(pub_pub_rels), 0

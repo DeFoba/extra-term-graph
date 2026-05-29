@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Extra-Term-Graph — Поиск и анализ терминологического графа научных публикаций.">
+  <title>Extra-Term-Graph — Терминологический граф</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- ========== Header ========== -->
+    <header class="header">
+      <div class="header-inner">
+        <div class="logo">
+          <div class="logo-icon">🔬</div>
+          <span>Extra-Term-Graph</span>
+        </div>
+        <nav class="tabs" id="main-tabs">
+          <button class="tab-btn active" data-tab="publications" id="tab-publications">
+            <span class="tab-icon">📄</span> Публикации
+          </button>
+          <button class="tab-btn" data-tab="keywords" id="tab-keywords">
+            <span class="tab-icon">🏷️</span> Ключевые слова
+          </button>
+          <button class="tab-btn" data-tab="cypher" id="tab-cypher">
+            <span class="tab-icon">⚡</span> Cypher-запросы
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <!-- ========== Main Content ========== -->
+    <main class="main">
+
+      <!-- Stats Bar -->
+      <div class="stats-bar" id="stats-bar">
+        <div class="stat-card">
+          <div class="stat-label">Публикаций</div>
+          <div class="stat-value" id="stat-pubs">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Ключевых слов</div>
+          <div class="stat-value" id="stat-keywords">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Связей Pub↔KW</div>
+          <div class="stat-value" id="stat-relations">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Похожих публикаций</div>
+          <div class="stat-value" id="stat-semantic">—</div>
+        </div>
+      </div>
+
+      <!-- ===== Publications Tab ===== -->
+      <section class="tab-panel active" id="panel-publications">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" class="search-input" id="pub-search"
+                   placeholder="Поиск по названию, аннотации или ключевым словам..."
+                   autocomplete="off">
+          </div>
+        </div>
+
+        <div id="pub-detail"></div>
+        <div class="results-info" id="pub-results-info"></div>
+        <div class="pub-list" id="pub-list"></div>
+        <div class="pagination" id="pub-pagination"></div>
+      </section>
+
+      <!-- ===== Keywords Tab ===== -->
+      <section class="tab-panel" id="panel-keywords">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" class="search-input" id="kw-search"
+                   placeholder="Поиск ключевых слов..."
+                   autocomplete="off">
+          </div>
+          <div class="filter-group" id="kw-filters">
+            <button class="filter-btn active" data-method="all">Все</button>
+            <button class="filter-btn" data-method="author">👤 Авторские</button>
+            <button class="filter-btn" data-method="tfidf">📊 TF-IDF</button>
+            <button class="filter-btn" data-method="keybert">🤖 KeyBERT</button>
+          </div>
+        </div>
+
+        <div id="kw-detail"></div>
+        <div class="results-info" id="kw-results-info"></div>
+        <div class="kw-grid" id="kw-grid"></div>
+        <div class="pagination" id="kw-pagination"></div>
+      </section>
+
+      <!-- ===== Cypher Tab ===== -->
+      <section class="tab-panel" id="panel-cypher">
+        <div class="cypher-intro">
+          <p>Готовые Cypher-запросы для <strong>Neo4j</strong>. Выберите объект или скопируйте запрос целиком и вставьте в Neo4j Browser.</p>
+        </div>
+
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+            <input type="text" class="search-input" id="cypher-search"
+                   placeholder="Поиск публикации или ключевого слова для генерации запроса..."
+                   autocomplete="off">
+          </div>
+        </div>
+
+        <div id="cypher-results"></div>
+
+        <div class="cypher-section">
+          <h3 class="cypher-section-title">📋 Общие запросы</h3>
+          <div id="cypher-general"></div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -15,9 +15,10 @@ def main():
         "--step", 
         type=str, 
         default="all", 
-        choices=["all", "corpus", "keywords", "summarize", "graph"],
+        choices=["all", "corpus", "keywords", "summarize", "graph", "web"],
         help="Pipeline step to run: 'corpus' (PDF processing), 'keywords' (TF-IDF & KeyBERT extraction & eval), "
-             "'summarize' (Extractive summaries & ROUGE), 'graph' (Construct graph & export CSVs/Cypher), or 'all'."
+             "'summarize' (Extractive summaries & ROUGE), 'graph' (Construct graph & export CSVs/Cypher), "
+             "'web' (Launch web UI for search & analysis), or 'all'."
     )
     parser.add_argument(
         "--jaccard_threshold", 
@@ -98,15 +99,23 @@ def main():
             
         if args.step == "graph" or args.step == "all":
             print("[Step 4/4] Starting Graph Construction and Ingestion...")
-            pubs_rel, kws_rel = build_and_export_graph(
+            pubs_rel, _ = build_and_export_graph(
                 workspace_dir, 
                 jaccard_threshold=args.jaccard_threshold,
                 similarity_threshold=args.semantic_threshold,
                 max_articles=args.max_articles
             )
             print(f"[Step 4/4] Graph Construction Completed.")
-            print(f"Generated paper similarity links (Jaccard >= {args.jaccard_threshold}): {pubs_rel}")
-            print(f"Generated semantic keyword links (Cosine >= {args.semantic_threshold}): {kws_rel}\n")
+            print(f"Generated paper similarity links (Jaccard >= {args.jaccard_threshold}): {pubs_rel}\n")
+            
+        if args.step == "web":
+            print("[Web UI] Starting Extra-Term-Graph Web Interface...")
+            from modules.web_app import app, load_data
+            load_data()
+            print("="*60)
+            print("  Open in browser: http://localhost:5000")
+            print("="*60)
+            app.run(host="0.0.0.0", port=5000, debug=False)
             
         print("=" * 80)
         print("                         PIPELINE RUN COMPLETED SUCCESS!                    ")
