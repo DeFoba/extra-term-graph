@@ -21,7 +21,7 @@ def normalize_phrase(phrase):
         normalized_words.append(lemma_cache[w])
     return " ".join(sorted(normalized_words))
 
-def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_threshold=0.85, max_articles=None):
+def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=None):
     corpus_dir = os.path.join(workspace_dir, "corpus")
     summary_json_path = os.path.join(corpus_dir, "corpus.json")
     export_dir = os.path.join(workspace_dir, "graph_export")
@@ -94,7 +94,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
                 norm_id = normalize_phrase(kw_str)
                 if not norm_id:
                     continue
-                    
+                
                 if norm_id not in unique_keywords:
                     unique_keywords[norm_id] = {
                         "originals": {},
@@ -210,33 +210,33 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         f.write("// or set your own file path prefix (e.g. file:///rel_pub_pub.csv).\n\n")
         
         f.write("// 1. Create Constraints\n")
-        f.write("CREATE CONSTRAINT pub_id_constraint IF NOT EXISTS FOR (p:Publication) REQUIRE p.id IS UNIQUE;\n")
+        f.write("CREATE CONSTRAINT pub_id_constraint IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;\n")
         f.write("CREATE CONSTRAINT kw_id_constraint IF NOT EXISTS FOR (k:Keyword) REQUIRE k.id IS UNIQUE;\n\n")
         
-        f.write("// 2. Import Publication Nodes\n")
+        f.write("// 2. Import Document Nodes\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///publications.csv' AS row\n")
-        f.write("MERGE (p:Publication {id: row.id})\n")
-        f.write("SET p.title = row.title,\n")
-        f.write("    p.annotation = row.annotation,\n")
-        f.write("    p.summary_tfidf = row.summary_tfidf,\n")
-        f.write("    p.summary_keybert = row.summary_keybert;\n\n")
+        f.write("MERGE (d:Document {id: row.id})\n")
+        f.write("SET d.title = row.title,\n")
+        f.write("    d.annotation = row.annotation,\n")
+        f.write("    d.summary_tfidf = row.summary_tfidf,\n")
+        f.write("    d.summary_keybert = row.summary_keybert;\n\n")
         
         f.write("// 3. Import Keyword Nodes (with methods for color-coding)\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///keywords.csv' AS row\n")
         f.write("MERGE (k:Keyword {id: row.id})\n")
         f.write("SET k.name = row.name, k.methods = row.methods;\n\n")
         
-        f.write("// 4. Import Publication-Keyword Relationships\n")
+        f.write("// 4. Import Document-Keyword Relationships\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_pub_keyword.csv' AS row\n")
-        f.write("MATCH (p:Publication {id: row.pub_id})\n")
+        f.write("MATCH (d:Document {id: row.pub_id})\n")
         f.write("MATCH (k:Keyword {id: row.keyword_id})\n")
-        f.write("CREATE (p)-[:HAS_KEYWORD {method: row.method, weight: toFloat(row.weight)}]->(k);\n\n")
+        f.write("CREATE (d)-[:HAS_KEYWORD {method: row.method, weight: toFloat(row.weight)}]->(k);\n\n")
         
-        f.write("// 5. Import Publication Similarity Relationships\n")
+        f.write("// 5. Import Document Similarity Relationships\n")
         f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_pub_pub.csv' AS row\n")
-        f.write("MATCH (p1:Publication {id: row.source})\n")
-        f.write("MATCH (p2:Publication {id: row.target})\n")
-        f.write("CREATE (p1)-[:SIMILAR_TO {score: toFloat(row.score)}]->(p2);\n\n")
+        f.write("MATCH (d1:Document {id: row.source})\n")
+        f.write("MATCH (d2:Document {id: row.target})\n")
+        f.write("CREATE (d1)-[:SIMILAR_TO {score: toFloat(row.score)}]->(d2);\n\n")
         
         f.write("// 6. Assign color labels to Keywords by extraction method\n")
         f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'author' SET k:AuthorKW;\n")
@@ -272,7 +272,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
     
     if not neo4j_password:
         print("Neo4j password not found in environment or file. Skipping database upload.")
-        return len(pub_pub_rels), 0
+        return len(pub_pub_rels), 0, 0
         
     try:
         from neo4j import GraphDatabase
@@ -294,17 +294,17 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         print("Uploading in-memory batches...")
         
         def create_constraints(tx):
-            tx.run("CREATE CONSTRAINT pub_id_constraint IF NOT EXISTS FOR (p:Publication) REQUIRE p.id IS UNIQUE")
+            tx.run("CREATE CONSTRAINT pub_id_constraint IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE")
             tx.run("CREATE CONSTRAINT kw_id_constraint IF NOT EXISTS FOR (k:Keyword) REQUIRE k.id IS UNIQUE")
             
         def clear_graph(tx):
-            tx.run("MATCH (p:Publication) DETACH DELETE p")
+            tx.run("MATCH (d:Document) DETACH DELETE d")
             tx.run("MATCH (k:Keyword) DETACH DELETE k")
             
         def upload_publications(tx, batch):
             tx.run("""
             UNWIND $batch AS p
-            MERGE (pub:Publication {id: p.id})
+            MERGE (pub:Document {id: p.id})
             SET pub.title = p.title, pub.annotation = p.annotation,
                 pub.summary_tfidf = p.summary_tfidf, pub.summary_keybert = p.summary_keybert
             """, batch=batch)
@@ -319,20 +319,18 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         def upload_pub_kw(tx, batch):
             tx.run("""
             UNWIND $batch AS r
-            MATCH (p:Publication {id: r.pub_id})
+            MATCH (d:Document {id: r.pub_id})
             MATCH (k:Keyword {id: r.keyword_id})
-            CREATE (p)-[:HAS_KEYWORD {method: r.method, weight: r.weight}]->(k)
+            CREATE (d)-[:HAS_KEYWORD {method: r.method, weight: r.weight}]->(k)
             """, batch=batch)
             
         def upload_pub_pub(tx, batch):
             tx.run("""
             UNWIND $batch AS r
-            MATCH (p1:Publication {id: r.source})
-            MATCH (p2:Publication {id: r.target})
-            CREATE (p1)-[:SIMILAR_TO {score: r.score}]->(p2)
+            MATCH (d1:Document {id: r.source})
+            MATCH (d2:Document {id: r.target})
+            CREATE (d1)-[:SIMILAR_TO {score: r.score}]->(d2)
             """, batch=batch)
-            
-
             
         nodes_keywords = [{"id": nid, "name": info["display_name"], "methods": info.get("methods", "")} for nid, info in unique_keywords.items()]
         
@@ -371,4 +369,4 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
         print(f"\nConnection to Neo4j database failed: {e}. Skipping database upload.")
         
     print("\n--- Graph Export Stage Completed ---")
-    return len(pub_pub_rels), 0
+    return len(pub_pub_rels), 0, 0

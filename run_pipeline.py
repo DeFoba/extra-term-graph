@@ -99,10 +99,10 @@ def main():
             
         if args.step == "graph" or args.step == "all":
             print("[Step 4/4] Starting Graph Construction and Ingestion...")
-            pubs_rel, _ = build_and_export_graph(
+            pubs_rel, _, _ = build_and_export_graph(
                 workspace_dir, 
                 jaccard_threshold=args.jaccard_threshold,
-                similarity_threshold=args.semantic_threshold,
+                
                 max_articles=args.max_articles
             )
             print(f"[Step 4/4] Graph Construction Completed.")
