@@ -1,6 +1,7 @@
 import os
 import re
 import json
+# pyrefly: ignore [missing-import]
 import fitz
 from tqdm import tqdm
 
@@ -13,7 +14,7 @@ def is_text_readable(text, threshold=0.75):
         return False
     valid_chars = 0
     for ch in text:
-        if ('\u0400' <= ch <= '\u04FF' or  # Cyrillic
+        if ('\u0400' <= ch <= '\u04FF' or
             'a' <= ch <= 'z' or 'A' <= ch <= 'Z' or
             '0' <= ch <= '9' or
             ch in ' \t\n\r.,;:!?()-"\'/[]{}+=<>@#$%&*_~\\'):
@@ -95,6 +96,7 @@ def normalize_text_spacing(text):
     text = text.replace('\n', ' ')
     text = re.sub(r'\s+', ' ', text)
     text = text.replace('@@PARAGRAPH@@', '\n\n')
+    text = text.replace('', '').replace('', '').replace('¶', '')
     return "\n\n".join(p.strip() for p in text.split('\n\n') if p.strip())
 
 def extract_authors(title_metadata):
@@ -142,6 +144,10 @@ def extract_authors(title_metadata):
                     # Remove trailing commas, periods and underscores
                     part = part.replace('_', ' ')
                     part = re.sub(r'\s+', ' ', part).strip(' ,.')
+                    for symb in part:
+                        if symb in "1234567890":
+                            part = part.replace(symb, '')
+
                     if part:
                         authors.append(part)
     return authors

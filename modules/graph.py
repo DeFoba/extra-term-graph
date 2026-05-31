@@ -268,7 +268,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, similarity_thr
     neo4j_uri = os.environ.get("NEO4J_URI", file_creds.get("NEO4J_URI", "bolt://localhost:7687"))
     neo4j_user_file = file_creds.get("NEO4J_USERNAME", file_creds.get("NEO4J_USER", "neo4j"))
     neo4j_user = os.environ.get("NEO4J_USER", neo4j_user_file)
-    neo4j_password = os.environ.get("NEO4J_PASSWORD", file_creds.get("NEO4J_PASSWORD", None))
+    neo4j_password = os.environ.get("NEO4J_PASSWORD", file_creds.get("NEO4J_PASSWORD", "extra_term_graph_2026"))
     
     if not neo4j_password:
         print("Neo4j password not found in environment or file. Skipping database upload.")

@@ -172,19 +172,34 @@
       list.innerHTML = page.map(p => {
         const kwRels = state.relPubKw.filter(r => r.pub_id === p.id);
         const authorKws = kwRels.filter(r => r.method === 'author').slice(0, 5);
-        const badges = authorKws.map(r => {
-          const kw = state.kwById[r.keyword_id];
-          return kw ? `<span class="badge badge-author">${esc(kw.name)}</span>` : '';
-        }).join('');
+        const hasAuthorKws = authorKws.length > 0;
+        let badges;
+        if (hasAuthorKws) {
+          badges = authorKws.map(r => {
+            const kw = state.kwById[r.keyword_id];
+            return kw ? `<span class="badge badge-author">${esc(kw.name)}</span>` : '';
+          }).join('');
+        } else {
+          const keybertKws = kwRels.filter(r => r.method === 'keybert').slice(0, 5);
+          badges = keybertKws.map(r => {
+            const kw = state.kwById[r.keyword_id];
+            return kw ? `<span class="badge badge-keybert">${esc(kw.name)}</span>` : '';
+          }).join('');
+        }
+        // Annotation: prefer author annotation, fallback to KeyBERT summary
+        const hasAnnotation = p.annotation && p.annotation.trim().length > 0;
+        const annotationText = hasAnnotation ? p.annotation : (p.summary_keybert || '');
+        const annotationLabel = hasAnnotation ? '' : '<span class="badge badge-auto-annotation">🤖 Авто-аннотация</span> ';
         return `
           <div class="pub-card" data-pub-id="${esc(p.id)}">
             <div class="pub-card-title">${esc(p.title)}</div>
             ${p.authors && p.authors.length > 0 ? `<div class="pub-card-authors">✅ ${p.authors.map(a => esc(a)).join(', ')}</div>` : ''}
+            ${annotationText ? `<div class="pub-card-annotation">${annotationLabel}${esc(annotationText)}</div>` : ''}
             <div class="pub-card-meta">
               <span class="badge badge-file">📄 ${esc(p.id)}</span>
               ${badges}
+              ${!hasAuthorKws && badges ? '<span class="badge badge-auto-kw">🤖 авто</span>' : ''}
             </div>
-            ${p.annotation ? `<div class="pub-card-annotation">${esc(p.annotation)}</div>` : ''}
           </div>`;
       }).join('');
 
@@ -240,21 +255,35 @@
           <div class="detail-section-body">${p.authors.map(a => esc(a)).join(', ')}</div>
         </div>` : ''}
 
-        ${p.annotation ? `
+        ${(() => {
+        const hasAnnotation = p.annotation && p.annotation.trim().length > 0;
+        const annotationText = hasAnnotation ? p.annotation : (p.summary_keybert || '');
+        if (!annotationText) return '';
+        const title = hasAnnotation ? '📝 Аннотация' : '🤖 Аннотация (KeyBERT)';
+        const autoTag = hasAnnotation ? '' : '<span class="badge badge-auto-annotation" style="margin-left:8px;vertical-align:middle">авто</span>';
+        return `
         <div class="detail-section">
-          <div class="detail-section-title">📝 Аннотация</div>
-          <div class="detail-section-body">${esc(p.annotation)}</div>
-        </div>` : ''}
+          <div class="detail-section-title">${title}${autoTag}</div>
+          <div class="detail-section-body">${esc(annotationText)}</div>
+        </div>`;
+      })()}
 
         <div class="detail-section">
-          <div class="detail-section-title">👤 Авторские ключевые слова</div>
+          <div class="detail-section-title">${authorKws.length > 0 ? '👤 Авторские ключевые слова' : '🤖 Ключевые слова (KeyBERT)'}
+            ${authorKws.length === 0 ? '<span class="badge badge-auto-kw" style="margin-left:8px;vertical-align:middle">авто</span>' : ''}
+          </div>
           <div class="detail-keywords-group">
             ${authorKws.length > 0
         ? authorKws.map(r => {
           const kw = state.kwById[r.keyword_id];
           return kw ? `<span class="badge badge-author" style="cursor:pointer" data-kw-nav="${esc(r.keyword_id)}">${esc(kw.name)}</span>` : '';
         }).join('')
-        : '<span style="color:var(--text-muted);font-size:0.85rem">Нет данных</span>'}
+        : (keybertKws.length > 0
+          ? keybertKws.map(r => {
+            const kw = state.kwById[r.keyword_id];
+            return kw ? `<span class="badge badge-keybert" style="cursor:pointer" data-kw-nav="${esc(r.keyword_id)}">${esc(kw.name)}</span>` : '';
+          }).join('')
+          : '<span style="color:var(--text-muted);font-size:0.85rem">Нет данных</span>')}
           </div>
         </div>
 
@@ -289,19 +318,19 @@
 
         ${simPubs.length > 0 ? `
         <div class="detail-section">
-          <div class="detail-section-title">🔗 Похожие публикации (Jaccard)</div>
+          <div class="detail-section-title">🔗 Похожие публикации</div>
           <div class="data-table-wrap">
             <table class="data-table">
               <thead><tr><th>Публикация</th><th>Jaccard</th></tr></thead>
               <tbody>
                 ${simPubs.slice(0, 10).map(s => {
-          const sp = state.pubById[s.id];
-          return sp ? `<tr class="similar-item" data-pub-id="${esc(s.id)}">
+            const sp = state.pubById[s.id];
+            return sp ? `<tr class="similar-item" data-pub-id="${esc(s.id)}">
                     <td class="td-title">${esc(sp.title)}</td>
                     <td class="td-score"><span class="badge badge-score">${(s.score * 100).toFixed(1)}%</span></td>
                     </tr>
                   ` : '';
-        }).join('')}
+          }).join('')}
               </tbody>
             </table>
           </div>
@@ -310,13 +339,13 @@
         <div class="detail-section">
           <div class="detail-section-title">⚡ Cypher-запросы для этой публикации</div>
           ${renderCypherBlock('Все ключевые слова публикации',
-          `MATCH (p:Publication {id: '${escCypher(pubId)}'})-[r:HAS_KEYWORD]->(k:Keyword)\nRETURN k.name AS keyword, r.method AS method, r.weight AS weight\nORDER BY r.method, r.weight DESC`)}
+            `MATCH (p:Publication {id: '${escCypher(pubId)}'})-[r:HAS_KEYWORD]->(k:Keyword)\nRETURN k.name AS keyword, r.method AS method, r.weight AS weight\nORDER BY r.method, r.weight DESC`)}
           ${renderCypherBlock('Связанные публикации через общие ключевые слова',
-            `MATCH (p1:Publication {id: '${escCypher(pubId)}'})-[:HAS_KEYWORD]->(k:Keyword)<-[:HAS_KEYWORD]-(p2:Publication)\nWHERE p1 <> p2\nRETURN p2.title AS related_publication,\n       collect(DISTINCT k.name) AS shared_keywords,\n       count(DISTINCT k) AS shared_count\nORDER BY shared_count DESC`)}
+              `MATCH (p1:Publication {id: '${escCypher(pubId)}'})-[:HAS_KEYWORD]->(k:Keyword)<-[:HAS_KEYWORD]-(p2:Publication)\nWHERE p1 <> p2\nRETURN p2.title AS related_publication,\n       collect(DISTINCT k.name) AS shared_keywords,\n       count(DISTINCT k) AS shared_count\nORDER BY shared_count DESC`)}
           ${renderCypherBlock('Визуализация: связанные статьи через общие ключевые слова (Neo4j Browser)',
-              `MATCH path=(p:Publication {id: '${escCypher(pubId)}'})-[:HAS_KEYWORD]->(k:Keyword)<-[:HAS_KEYWORD]-(p2:Publication)\nWHERE p <> p2\nRETURN path\nLIMIT 50`)}
+                `MATCH path=(p:Publication {id: '${escCypher(pubId)}'})-[:HAS_KEYWORD]->(k:Keyword)<-[:HAS_KEYWORD]-(p2:Publication)\nWHERE p <> p2\nRETURN path\nLIMIT 50`)}
           ${renderCypherBlock('Визуализация: ключевые слова публикации (Neo4j Browser)',
-                `MATCH (p:Publication {id: '${escCypher(pubId)}'})-[r:HAS_KEYWORD]->(k:Keyword)\nRETURN p, r, k`)}
+                  `MATCH (p:Publication {id: '${escCypher(pubId)}'})-[r:HAS_KEYWORD]->(k:Keyword)\nRETURN p, r, k`)}
         </div>
       </div>`;
 

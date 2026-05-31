@@ -29,3 +29,12 @@ ENV/
 *.njsproj
 *.sln
 *.sw?
+
+# Local Neo4j server run script and ignored runtime data (keep bin and libs in Git)
+neo4j-community-5.26.0/data/
+neo4j-community-5.26.0/logs/
+neo4j-community-5.26.0/run/
+
+# Document and archive folders
+vkr_documents/
+archive/
