@@ -27,17 +27,13 @@
 ## 📂 Структура проекта
 
 ```text
-├── vkr_documents/              # Тексты ВКР и оформление (в гите игнорируется)
-├── archive/                    # Черновики, бэкапы и старый docker-compose (в гите игнорируется)
-├── neo4j-community-5.26.0/     # Локальный Neo4j Community Server (данные и логи игнорируются)
+├── neo4j-community-5.26.0/     # Локальный Neo4j Community Server
 ├── articles/                   # Папка со скачанными PDF-статьями (в гите игнорируется)
 ├── corpus/                     # JSON-файлы статей и сводный corpus.json
 ├── graph_export/               # CSV-файлы графа и скрипт import_csv.cypher
-├── docs/                       # Шаблоны и примеры отчетов
-├── scripts/                    # Bat-скрипты для запуска (run_full_pipeline.bat и др.)
-├── static/                     # Статика веб-интерфейса (HTML, CSS, JS)
+├── scripts/                    # Bat-скрипты для запуска
+├── static/                     # Веб-интерфейс (HTML, CSS, JS)
 ├── modules/                    # Модули пайплайна
-│   ├── __init__.py
 │   ├── corpus.py               # Предобработка PDF и сбор корпуса
 │   ├── keywords.py             # Извлечение и оценка ключевых слов
 │   ├── summarization.py        # Реферирование и оценка ROUGE
@@ -45,8 +41,8 @@
 │   ├── pars_news.py            # Парсер архива журнала (скачивание PDF)
 │   └── web_app.py              # Основное приложение Flask
 ├── run_neo4j.bat               # Запуск локальной базы Neo4j в 1 клик
-├── run_pipeline.py             # Главный оркестратор пайплайна (CLI интерфейс)
-├── web_app.py                  # Враппер для запуска веб-интерфейса
+├── run_pipeline.py             # Главный запуск пайплайна
+├── web_app.py                  # Запуск веб-интерфейса
 ├── requirements.txt            # Список зависимостей
 └── README.md                   # Документация проекта
 ```
