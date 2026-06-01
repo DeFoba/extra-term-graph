@@ -1,15 +1,10 @@
 import os
 import re
 import json
-# pyrefly: ignore [missing-import]
 import fitz
 from tqdm import tqdm
 
 def is_text_readable(text, threshold=0.75):
-    """Check if text is mostly readable (not garbled encoding).
-    Returns True if at least `threshold` fraction of chars are valid
-    Cyrillic/Latin letters, digits, whitespace, or common punctuation.
-    """
     if not text or len(text) < 100:
         return False
     valid_chars = 0
@@ -23,14 +18,14 @@ def is_text_readable(text, threshold=0.75):
     return ratio >= threshold
 
 def is_title_valid(title):
-    """Check if the title is readable and meaningful (not garbled)."""
+    """Check if the title is readable and meaningful."""
     if not title or len(title) < 3:
         return False
-    # Title should contain real Cyrillic or Latin words (3+ letters in a row)
+
     words = re.findall(r'[а-яёА-ЯЁ]{3,}|[a-zA-Z]{3,}', title)
     if len(words) < 1:
         return False
-    # Check readability of the title itself
+
     valid_chars = 0
     for ch in title:
         if ('\u0400' <= ch <= '\u04FF' or
@@ -43,9 +38,7 @@ def is_title_valid(title):
     return True
 
 def is_russian_text(text, threshold=0.5):
-    """Check if text is predominantly Russian.
-    Returns True if at least `threshold` fraction of letter characters are Cyrillic.
-    """
+    """Check if text is Russian."""
     if not text:
         return False
     cyrillic = 0
@@ -100,15 +93,12 @@ def normalize_text_spacing(text):
     return "\n\n".join(p.strip() for p in text.split('\n\n') if p.strip())
 
 def extract_authors(title_metadata):
-    """Extract author names from the title_metadata block (text before 'Аннотация').
-    Authors are identified by lines containing patterns like 'А.Б. Фамилия' or 'A.B. Surname'.
-    """
+    """Extract author names from the title_metadata block."""
     if not title_metadata:
         return []
     lines = [line.strip() for line in title_metadata.split("\n") if line.strip()]
     authors = []
-    # Pattern: one or more author names with initials — Cyrillic or Latin
-    # e.g. "Л.В. Аршинский, В.Л. Аршинский" or "A.V. Smirnov, T.V. Levashova"
+    
     initials_pattern = re.compile(
         r'[А-ЯЁA-Z]\s*\.\s*[А-ЯЁA-Z]\s*\.'
     )
@@ -125,23 +115,23 @@ def extract_authors(title_metadata):
             "самара", "samara", "минск", "minsk",
         ]):
             continue
-        # Must contain initials pattern
+        
         if not initials_pattern.search(line):
             continue
-        # Additional check: line should not be too long (likely a sentence, not authors)
+        
         if len(line) > 200:
             continue
-        # Clean up: remove superscript digits and extra whitespace
+        
         clean_line = re.sub(r'[¹²³⁴⁵⁶⁷⁸⁹⁰]+', '', line)
-        clean_line = re.sub(r'\d+(?=[А-ЯЁA-Z])', '', clean_line)  # "1А." → "А."
+        clean_line = re.sub(r'\d+(?=[А-ЯЁA-Z])', '', clean_line)
         clean_line = re.sub(r'\s+', ' ', clean_line).strip()
         if clean_line:
-            # Split by comma to get individual authors
+            
             parts = re.split(r'\s*,\s*', clean_line)
             for part in parts:
                 part = part.strip()
                 if part and initials_pattern.search(part) and len(part) > 3:
-                    # Remove trailing commas, periods and underscores
+                    
                     part = part.replace('_', ' ')
                     part = re.sub(r'\s+', ' ', part).strip(' ,.')
                     for symb in part:
@@ -300,12 +290,10 @@ def process_pdf(pdf_path):
         main_text = normalize_text_spacing(main_text)
         
     else:
-        # --- Best-effort extraction for articles with missing/malformed markers ---
         has_standard_structure = (m_annot_ru and m_keys_ru and 
                                   m_keys_ru.start() > m_annot_ru.start())
         
         if has_standard_structure:
-            # === Standard path: both markers in correct order ===
             idx_annot_start = m_annot_ru.start()
             idx_keys_start = m_keys_ru.start()
             
@@ -371,13 +359,10 @@ def process_pdf(pdf_path):
             main_text = normalize_text_spacing(main_text)
             
         else:
-            # === Fallback path: missing or malformed markers ===
-            # Try English markers first
             m_abstract = re.search(r'\babstract\b', full_text, re.IGNORECASE)
             m_keywords_en = re.search(r'\bkeywords\b|\bkey\s+words\b', full_text, re.IGNORECASE)
             
             if m_abstract and m_keywords_en and m_keywords_en.start() > m_abstract.start():
-                # English structure found
                 title_metadata = full_text[:m_abstract.start()].strip()
                 title = extract_title(title_metadata, filename)
                 authors = extract_authors(title_metadata)
@@ -393,7 +378,6 @@ def process_pdf(pdf_path):
                 keywords_str = re.sub(r'^[:\s\-\.]+', '', raw_kw).strip()
                 keywords_list = clean_keywords(keywords_str)
                 
-                # Main text: from after keywords to references
                 ref_patterns = [
                     r'^\s*references\s*$', r'^\s*список\s+литературы\s*$',
                     r'^\s*литература\s*$', r'^\s*список\s+источников\s*$'
@@ -408,15 +392,12 @@ def process_pdf(pdf_path):
                 body_end = min(ref_starts) if ref_starts else len(full_text)
                 main_text = normalize_text_spacing(full_text[body_start:body_end].strip())
             else:
-                # No structured markers at all — pure fallback
-                # Try to find title in first ~500 chars
                 first_chunk = full_text[:min(500, len(full_text))]
                 title = extract_title(first_chunk, filename)
                 authors = extract_authors(first_chunk)
                 annotation = ""
                 keywords_list = []
                 
-                # Cut references from the end
                 ref_patterns = [
                     r'^\s*references\s*$', r'^\s*список\s+литературы\s*$',
                     r'^\s*литература\s*$', r'^\s*список\s+источников\s*$'
@@ -429,19 +410,15 @@ def process_pdf(pdf_path):
                 body_end = min(ref_starts) if ref_starts else len(full_text)
                 main_text = normalize_text_spacing(full_text[:body_end].strip())
             
-            # Minimum text length check — if too short, not useful
             if len(main_text) < 200:
                 return {"skipped": "Too little text content to extract anything useful"}
     
-    # Quality check: reject garbled/unreadable text (broken PDF encoding)
     if not is_text_readable(main_text):
         return {"skipped": "Text appears garbled (encoding issue)"}
     
-    # Quality check: reject articles with garbled/unreadable titles
     if not is_title_valid(title):
         return {"skipped": f"Title appears garbled: {title[:50]}"}
     
-    # Language check: only Russian-language articles
     if not is_russian_text(main_text):
         return {"skipped": f"Non-Russian article: {title[:50]}"}
     

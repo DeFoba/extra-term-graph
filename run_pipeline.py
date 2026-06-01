@@ -73,7 +73,7 @@ def main():
             print(f"Warning: Could not parse credentials file {cred_file}: {e}")
             
     print("=" * 80)
-    print("                      NEW DIPLOM PIPELINE ORCHESTRATOR                      ")
+    print("                      PIPELINE ORCHESTRATOR                      ")
     print("=" * 80)
     print(f"Working Directory: {workspace_dir}")
     print(f"Executing step:    {args.step.upper()}")

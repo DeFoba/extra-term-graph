@@ -17,9 +17,8 @@ CORPUS_JSON_PATH = os.path.join(BASE_DIR, "corpus", "corpus.json")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
 app = Flask(__name__, static_folder=STATIC_DIR)
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching during development
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# ─── In-memory data store ───
 data_store = {
     "publications": [],
     "keywords": [],
@@ -48,7 +47,6 @@ def load_data():
     """Load all data into memory at startup."""
     print("Loading graph data...")
 
-    # Publications: merge CSV with corpus.json for richer data
     pub_csv = load_csv("publications.csv")
     corpus_data = {}
     if os.path.exists(CORPUS_JSON_PATH):
@@ -82,7 +80,6 @@ def load_data():
     # Keywords
     data_store["keywords"] = load_csv("keywords.csv")
 
-    # Relationships
     def parse_weight(row):
         try:
             row["weight"] = float(row.get("weight", 1.0))
@@ -107,41 +104,29 @@ def load_data():
     print("Data loaded successfully!\n")
 
 
-# ─── Static file serving ───
-
 @app.route("/")
 def index():
     return send_from_directory(STATIC_DIR, "index.html")
-
 
 @app.route("/static/<path:filename>")
 def static_files(filename):
     return send_from_directory(STATIC_DIR, filename)
 
-
-# ─── API Endpoints ───
-
 @app.route("/api/publications")
 def api_publications():
     return jsonify(data_store["publications"])
-
 
 @app.route("/api/keywords")
 def api_keywords():
     return jsonify(data_store["keywords"])
 
-
 @app.route("/api/rel_pub_keyword")
 def api_rel_pub_keyword():
     return jsonify(data_store["rel_pub_keyword"])
 
-
 @app.route("/api/rel_pub_pub")
 def api_rel_pub_pub():
     return jsonify(data_store["rel_pub_pub"])
-
-
-
 
 @app.route("/api/stats")
 def api_stats():
@@ -152,8 +137,6 @@ def api_stats():
         "rel_pub_pub": len(data_store["rel_pub_pub"]),
     })
 
-
-# ─── Main ───
 
 if __name__ == "__main__":
     load_data()

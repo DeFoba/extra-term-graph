@@ -157,7 +157,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
                 
     print(f"Generated {len(pub_pub_rels)} publication similarity links.")
 
-    # Determine dominant method for each keyword (for coloring in Neo4j)
     kw_method_map = {}
     for r in pub_keyword_rels:
         nid = r["keyword_id"]
@@ -207,7 +206,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
     with open(cypher_script_path, "w", encoding="utf-8") as f:
         f.write("// --- Neo4j CSV Import Script ---\n")
         f.write("// Instructions: Place the CSV files from 'graph_export/' into your Neo4j Import folder,\n")
-        f.write("// or set your own file path prefix (e.g. file:///rel_pub_pub.csv).\n\n")
         
         f.write("// 1. Create Constraints\n")
         f.write("CREATE CONSTRAINT pub_id_constraint IF NOT EXISTS FOR (d:Document) REQUIRE d.id IS UNIQUE;\n")

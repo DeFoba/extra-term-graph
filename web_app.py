@@ -1,4 +1,3 @@
-"""Wrapper for backward compatibility. Actual code is in modules/web_app.py"""
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from modules.web_app import app, load_data

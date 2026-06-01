@@ -3,7 +3,7 @@ import requests, os
 
 with requests.Session() as session:
     main_page = BeautifulSoup(session.get('https://www.ontology-of-designing.ru/issues/').content, 'html.parser')
-    tom_links = [] # Будущий список ссылок на тома
+    tom_links = []
 
     # Получаем список ссылок всех томов
     print('Получаем все тома: ',end='')
