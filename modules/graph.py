@@ -122,41 +122,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
         
     print(f"Found {len(unique_keywords)} unique keywords after morphological normalization.")
 
-    print(f"\nComputing document similarity based on keyword overlap (threshold >= {jaccard_threshold})...")
-    pub_pub_rels = []
-    
-    pub_to_keywords = {}
-    for r in pub_keyword_rels:
-        pid = r["pub_id"]
-        kw_id = r["keyword_id"]
-        if pid not in pub_to_keywords:
-            pub_to_keywords[pid] = set()
-        pub_to_keywords[pid].add(kw_id)
-        
-    pub_ids = [p["id"] for p in publications]
-    
-    for i in range(len(pub_ids)):
-        kws_i = pub_to_keywords.get(pub_ids[i], set())
-        if not kws_i:
-            continue
-        for j in range(i + 1, len(pub_ids)):
-            kws_j = pub_to_keywords.get(pub_ids[j], set())
-            if not kws_j:
-                continue
-            
-            intersection = kws_i.intersection(kws_j)
-            union = kws_i.union(kws_j)
-            jaccard = len(intersection) / len(union)
-            
-            if jaccard >= jaccard_threshold:
-                pub_pub_rels.append({
-                    "source": pub_ids[i],
-                    "target": pub_ids[j],
-                    "score": round(jaccard, 4)
-                })
-                
-    print(f"Generated {len(pub_pub_rels)} publication similarity links.")
-
     kw_method_map = {}
     for r in pub_keyword_rels:
         nid = r["keyword_id"]
@@ -191,15 +156,7 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
         for r in pub_keyword_rels:
             writer.writerow([r["pub_id"], r["keyword_id"], r["method"], r["weight"]])
             
-    pub_pub_csv_path = os.path.join(export_dir, "rel_pub_pub.csv")
-    with open(pub_pub_csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["source", "target", "score"])
-        for r in pub_pub_rels:
-            writer.writerow([r["source"], r["target"], r["score"]])
-            
 
-    # Generate Cypher LOAD CSV Script for Aura DB in the graph_export directory
     cypher_script_path = os.path.join(export_dir, "import_csv.cypher")
     print(f"Generating Neo4j LOAD CSV script: {cypher_script_path}")
     
@@ -230,64 +187,38 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
         f.write("MATCH (k:Keyword {id: row.keyword_id})\n")
         f.write("CREATE (d)-[:HAS_KEYWORD {method: row.method, weight: toFloat(row.weight)}]->(k);\n\n")
         
-        f.write("// 5. Import Document Similarity Relationships\n")
-        f.write("LOAD CSV WITH HEADERS FROM 'file:///rel_pub_pub.csv' AS row\n")
-        f.write("MATCH (d1:Document {id: row.source})\n")
-        f.write("MATCH (d2:Document {id: row.target})\n")
-        f.write("CREATE (d1)-[:SIMILAR_TO {score: toFloat(row.score)}]->(d2);\n\n")
-        
-        f.write("// 6. Assign color labels to Keywords by extraction method\n")
+        f.write("// 5. Assign color labels to Keywords by extraction method\n")
         f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'author' SET k:AuthorKW;\n")
         f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'tfidf' SET k:TFIDFKW;\n")
         f.write("MATCH (k:Keyword) WHERE k.methods CONTAINS 'keybert' SET k:KeyBERTKW;\n\n")
 
     print("\nAttempting to connect and upload to Neo4j database...")
     
-    cred_file = None
-    for f_name in os.listdir(workspace_dir):
-        if f_name.startswith("Neo4j-") and f_name.endswith(".txt"):
-            cred_file = os.path.join(workspace_dir, f_name)
-            break
-            
-    file_creds = {}
-    if cred_file:
-        print(f"Found Neo4j credentials file: {os.path.basename(cred_file)}")
-        try:
-            with open(cred_file, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("#") or not line or "=" not in line:
-                        continue
-                    k, v = line.split("=", 1)
-                    file_creds[k.strip()] = v.strip()
-        except Exception as e:
-            print(f"Warning: Could not parse credentials file: {e}")
+    env_path = os.path.join(workspace_dir, ".env")
+    env_vars = {}
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                env_vars[k.strip()] = v.strip()
 
-    neo4j_uri = os.environ.get("NEO4J_URI", file_creds.get("NEO4J_URI", "bolt://localhost:7687"))
-    neo4j_user_file = file_creds.get("NEO4J_USERNAME", file_creds.get("NEO4J_USER", "neo4j"))
-    neo4j_user = os.environ.get("NEO4J_USER", neo4j_user_file)
-    neo4j_password = os.environ.get("NEO4J_PASSWORD", file_creds.get("NEO4J_PASSWORD", "extra_term_graph_2026"))
+    neo4j_uri = os.environ.get("NEO4J_URI", env_vars.get("NEO4J_URI", "bolt://localhost:7687"))
+    neo4j_user = os.environ.get("NEO4J_USER", env_vars.get("NEO4J_USER", "neo4j"))
+    neo4j_password = os.environ.get("NEO4J_PASSWORD", env_vars.get("NEO4J_PASSWORD", "extra_term_graph_2026"))
     
     if not neo4j_password:
         print("Neo4j password not found in environment or file. Skipping database upload.")
-        return len(pub_pub_rels), 0, 0
+        return len(pub_keyword_rels), len(publications), len(unique_keywords)
         
     try:
         from neo4j import GraphDatabase
         print(f"Connecting to Neo4j at {neo4j_uri}...")
-        try:
-            driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
-            driver.verify_connectivity()
-            print(f"Connected successfully using user '{neo4j_user}'!")
-        except Exception as conn_err:
-            if neo4j_user != "neo4j":
-                print(f"Connection failed with user '{neo4j_user}': {conn_err}")
-                print("Trying fallback user 'neo4j' (standard for Aura DB)...")
-                driver = GraphDatabase.driver(neo4j_uri, auth=("neo4j", neo4j_password))
-                driver.verify_connectivity()
-                print("Connected successfully using fallback user 'neo4j'!")
-            else:
-                raise conn_err
+        driver = GraphDatabase.driver(neo4j_uri, auth=(neo4j_user, neo4j_password))
+        driver.verify_connectivity()
+        print(f"Connected successfully to {neo4j_uri} as '{neo4j_user}'!")
                 
         print("Uploading in-memory batches...")
         
@@ -322,14 +253,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
             CREATE (d)-[:HAS_KEYWORD {method: r.method, weight: r.weight}]->(k)
             """, batch=batch)
             
-        def upload_pub_pub(tx, batch):
-            tx.run("""
-            UNWIND $batch AS r
-            MATCH (d1:Document {id: r.source})
-            MATCH (d2:Document {id: r.target})
-            CREATE (d1)-[:SIMILAR_TO {score: r.score}]->(d2)
-            """, batch=batch)
-            
         nodes_keywords = [{"id": nid, "name": info["display_name"], "methods": info.get("methods", "")} for nid, info in unique_keywords.items()]
         
         with driver.session() as session:
@@ -347,10 +270,6 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
             print("Uploading publication-keyword extraction links...")
             for i in range(0, len(pub_keyword_rels), 500):
                 session.execute_write(upload_pub_kw, pub_keyword_rels[i:i+500])
-                
-            print("Uploading publication similarity links...")
-            for i in range(0, len(pub_pub_rels), 500):
-                session.execute_write(upload_pub_pub, pub_pub_rels[i:i+500])
             
             print("Assigning color labels to keywords...")
             def assign_kw_labels(tx):
@@ -367,4 +286,4 @@ def build_and_export_graph(workspace_dir, jaccard_threshold=0.05, max_articles=N
         print(f"\nConnection to Neo4j database failed: {e}. Skipping database upload.")
         
     print("\n--- Graph Export Stage Completed ---")
-    return len(pub_pub_rels), 0, 0
+    return len(pub_keyword_rels), len(publications), len(unique_keywords)

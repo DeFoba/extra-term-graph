@@ -7,5 +7,6 @@ if __name__ == "__main__":
     print("=" * 60)
     print("  Extra-Term-Graph Web Interface")
     print("  Open in browser: http://localhost:5000")
+    print("  Neo4j Browser:   http://localhost:7474")
     print("=" * 60)
     app.run(host="0.0.0.0", port=5000, debug=False)

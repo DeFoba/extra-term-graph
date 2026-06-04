@@ -1,6 +1,10 @@
 import os
 import argparse
 import sys
+import socket
+import time
+import subprocess
+import platform
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -8,6 +12,62 @@ from modules.corpus import build_corpus
 from modules.keywords import extract_and_evaluate_keywords
 from modules.summarization import generate_and_evaluate_summaries
 from modules.graph import build_and_export_graph
+
+def is_neo4j_responsive(host="127.0.0.1", port=7687):
+    try:
+        with socket.create_connection((host, port), timeout=1.0):
+            return True
+    except OSError:
+        return False
+
+def ensure_neo4j_running(workspace_dir):
+    print("Checking if Neo4j DBMS is running...")
+    if is_neo4j_responsive():
+        print("  ✓ Neo4j is already running and responsive.")
+        return True
+
+    print("  ✗ Neo4j is not running. Attempting to start it automatically...")
+    system_os = platform.system().lower()
+    
+    if system_os == "windows":
+        bat_path = os.path.join(workspace_dir, "scripts", "run_neo4j.bat")
+        if os.path.exists(bat_path):
+            print(f"  → Launching {bat_path} in a new console window...")
+            try:
+                subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE, shell=True)
+            except Exception as e:
+                print(f"  ERROR launching .bat: {e}")
+                return False
+        else:
+            print(f"  ERROR: {bat_path} not found.")
+            return False
+    else:
+        sh_path = os.path.join(workspace_dir, "scripts", "run_neo4j.sh")
+        if os.path.exists(sh_path):
+            print(f"  → Launching {sh_path} in background...")
+            try:
+                os.chmod(sh_path, 0o755)
+            except Exception:
+                pass
+            try:
+                subprocess.Popen([sh_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, preexec_fn=os.setpgrp)
+            except Exception as e:
+                print(f"  ERROR launching .sh: {e}")
+                return False
+        else:
+            print(f"  ERROR: {sh_path} not found.")
+            return False
+
+    print("  Waiting for Neo4j to start up (up to 30 seconds)...")
+    for attempt in range(1, 31):
+        time.sleep(2)
+        if is_neo4j_responsive():
+            print("  ✓ Neo4j started successfully!")
+            return True
+        print(f"    - Checking Neo4j connection (attempt {attempt}/30)...")
+        
+    print("  ⚠ Neo4j startup timed out. It might still be starting, or failed to start.")
+    return False
 
 def main():
     parser = argparse.ArgumentParser(description="NEW DIPLOM Pipeline Runner")
@@ -27,12 +87,6 @@ def main():
         help="Jaccard similarity threshold for paper-paper similarity edges (default: 0.05 for dense network)."
     )
     parser.add_argument(
-        "--semantic_threshold", 
-        type=float, 
-        default=0.90, 
-        help="Cosine similarity threshold for keyword-keyword semantic edges (default: 0.90)."
-    )
-    parser.add_argument(
         "--model_name",
         type=str,
         default="mlsa-iai-msu-lab/sci-rus-tiny",
@@ -48,29 +102,19 @@ def main():
     args = parser.parse_args()
     workspace_dir = os.path.dirname(os.path.abspath(__file__))
     
-    cred_file = None
-    for f_name in os.listdir(workspace_dir):
-        if f_name.startswith("Neo4j-") and f_name.endswith(".txt"):
-            cred_file = os.path.join(workspace_dir, f_name)
-            break
-            
-    if cred_file:
+    env_path = os.path.join(workspace_dir, ".env")
+    if os.path.exists(env_path):
         try:
-            with open(cred_file, "r", encoding="utf-8") as f:
+            with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
-                    if line.startswith("#") or not line or "=" not in line:
+                    if not line or line.startswith("#") or "=" not in line:
                         continue
                     k, v = line.split("=", 1)
-                    key = k.strip()
-                    val = v.strip()
-                    if key == "NEO4J_USERNAME":
-                        os.environ["NEO4J_USER"] = val
-                    elif key in ["NEO4J_URI", "NEO4J_PASSWORD"]:
-                        os.environ[key] = val
-            print(f"Auto-configured Neo4j environment from {os.path.basename(cred_file)}")
+                    os.environ.setdefault(k.strip(), v.strip())
+            print(f"Auto-configured environment from .env")
         except Exception as e:
-            print(f"Warning: Could not parse credentials file {cred_file}: {e}")
+            print(f"Warning: Could not parse .env file: {e}")
             
     print("=" * 80)
     print("                      PIPELINE ORCHESTRATOR                      ")
@@ -82,6 +126,9 @@ def main():
     print("=" * 80 + "\n")
     
     try:
+        if args.step in ["all", "graph", "web"]:
+            ensure_neo4j_running(workspace_dir)
+
         if args.step == "corpus" or args.step == "all":
             print("[Step 1/4] Starting Corpus Construction...")
             build_corpus(workspace_dir, max_articles=args.max_articles)
@@ -99,16 +146,14 @@ def main():
             
         if args.step == "graph" or args.step == "all":
             print("[Step 4/4] Starting Graph Construction and Ingestion...")
-            pubs_rel, _, _ = build_and_export_graph(
+            build_and_export_graph(
                 workspace_dir, 
                 jaccard_threshold=args.jaccard_threshold,
-                
                 max_articles=args.max_articles
             )
-            print(f"[Step 4/4] Graph Construction Completed.")
-            print(f"Generated paper similarity links (Jaccard >= {args.jaccard_threshold}): {pubs_rel}\n")
+            print(f"[Step 4/4] Graph Construction and Database Ingestion Completed.\n")
             
-        if args.step == "web":
+        if args.step == "web" or args.step == "all":
             print("[Web UI] Starting Extra-Term-Graph Web Interface...")
             from modules.web_app import app, load_data
             load_data()

@@ -11,6 +11,6 @@ echo (You can open http://localhost:7474 in your browser)
 echo (To stop the server, press Ctrl+C in this window)
 echo ---------------------------------------------------
 
-"%~dp0neo4j-community-5.26.0\bin\neo4j.bat" console
+"%~dp0..\neo4j-community-5.26.0\bin\neo4j.bat" console
 
 pause
