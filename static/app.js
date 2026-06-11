@@ -1,6 +1,8 @@
+/*
    Extra-Term-Graph — Frontend Application
    SPA: Publications, Keywords, Graph Visualization, Cypher Queries
    All search and data retrieval via Neo4j Cypher (server-side).
+*/
 
 (function () {
   'use strict';

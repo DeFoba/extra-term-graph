@@ -23,16 +23,16 @@ def is_neo4j_responsive(host="127.0.0.1", port=7687):
 def ensure_neo4j_running(workspace_dir):
     print("Checking if Neo4j DBMS is running...")
     if is_neo4j_responsive():
-        print("  ✓ Neo4j is already running and responsive.")
+        print("  [OK] Neo4j is already running and responsive.")
         return True
 
-    print("  ✗ Neo4j is not running. Attempting to start it automatically...")
+    print("  [ERR] Neo4j is not running. Attempting to start it automatically...")
     system_os = platform.system().lower()
     
     if system_os == "windows":
         bat_path = os.path.join(workspace_dir, "scripts", "run_neo4j.bat")
         if os.path.exists(bat_path):
-            print(f"  → Launching {bat_path} in a new console window...")
+            print(f"  [->] Launching {bat_path} in a new console window...")
             try:
                 subprocess.Popen([bat_path], creationflags=subprocess.CREATE_NEW_CONSOLE, shell=True)
             except Exception as e:
@@ -44,7 +44,7 @@ def ensure_neo4j_running(workspace_dir):
     else:
         sh_path = os.path.join(workspace_dir, "scripts", "run_neo4j.sh")
         if os.path.exists(sh_path):
-            print(f"  → Launching {sh_path} in background...")
+            print(f"  [->] Launching {sh_path} in background...")
             try:
                 os.chmod(sh_path, 0o755)
             except Exception:
@@ -62,11 +62,11 @@ def ensure_neo4j_running(workspace_dir):
     for attempt in range(1, 31):
         time.sleep(2)
         if is_neo4j_responsive():
-            print("  ✓ Neo4j started successfully!")
+            print("  [OK] Neo4j started successfully!")
             return True
         print(f"    - Checking Neo4j connection (attempt {attempt}/30)...")
         
-    print("  ⚠ Neo4j startup timed out. It might still be starting, or failed to start.")
+    print("  [WARN] Neo4j startup timed out. It might still be starting, or failed to start.")
     return False
 
 def main():

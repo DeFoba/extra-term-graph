@@ -49,10 +49,10 @@ def init_driver():
         from neo4j import GraphDatabase
         _driver = GraphDatabase.driver(cfg["uri"], auth=(cfg["user"], cfg["password"]))
         _driver.verify_connectivity()
-        print(f"  ✓ Connected to Neo4j at {cfg['uri']}")
+        print(f"  [OK] Connected to Neo4j at {cfg['uri']}")
     except Exception as e:
-        print(f"  ✗ Neo4j connection failed: {e}")
-        print(f"    → Make sure Neo4j is running (run_neo4j.bat / run_neo4j.sh)")
+        print(f"  [ERR] Neo4j connection failed: {e}")
+        print(f"    [->] Make sure Neo4j is running (run_neo4j.bat / run_neo4j.sh)")
         _driver = None
 
 
@@ -95,9 +95,9 @@ def _load_corpus():
             with open(CORPUS_JSON_PATH, "r", encoding="utf-8") as f:
                 corpus_list = json.load(f)
                 _corpus_data = {item["filename"]: item for item in corpus_list}
-            print(f"  ✓ Loaded corpus.json ({len(_corpus_data)} articles)")
+            print(f"  [OK] Loaded corpus.json ({len(_corpus_data)} articles)")
         except Exception as e:
-            print(f"  ✗ Failed to load corpus.json: {e}")
+            print(f"  [ERR] Failed to load corpus.json: {e}")
 
 
 def _enrich_publication(rec):
@@ -457,12 +457,12 @@ def load_data():
         result = _run_query("MATCH (d:Document) RETURN count(d) AS cnt")
         if result:
             cnt = result[0].get("cnt", 0)
-            print(f"  ✓ Neo4j contains {cnt} documents")
+            print(f"  [OK] Neo4j contains {cnt} documents")
             if cnt == 0:
-                print("  ⚠ Database is empty. Run: python run_pipeline.py --step graph")
+                print("  [WARN] Database is empty. Run: python run_pipeline.py --step graph")
     else:
-        print("  ⚠ Running without Neo4j — API will return errors")
-        print("    → Start Neo4j first: run_neo4j.bat (Windows) or ./run_neo4j.sh (Linux)")
+        print("  [WARN] Running without Neo4j — API will return errors")
+        print("    [->] Start Neo4j first: run_neo4j.bat (Windows) or ./run_neo4j.sh (Linux)")
 
     print("Initialization complete!\n")
 
