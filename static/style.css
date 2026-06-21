@@ -1,42 +1,42 @@
 /* ============================================================
    Extra-Term-Graph — Web UI Styles
-   Dark glassmorphism theme with micro-animations
+   Clean white theme with subtle shadows and micro-animations
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* ---------- CSS Custom Properties ---------- */
 :root {
-  --bg-primary: #0a0e1a;
-  --bg-secondary: #111827;
-  --bg-card: rgba(17, 24, 39, 0.7);
-  --bg-glass: rgba(255, 255, 255, 0.04);
-  --bg-glass-hover: rgba(255, 255, 255, 0.08);
-  --border-glass: rgba(255, 255, 255, 0.08);
-  --border-glass-hover: rgba(255, 255, 255, 0.15);
+  --bg-primary: #f5f7fa;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.85);
+  --bg-glass: rgba(255, 255, 255, 0.7);
+  --bg-glass-hover: rgba(0, 0, 0, 0.04);
+  --border-glass: rgba(0, 0, 0, 0.08);
+  --border-glass-hover: rgba(0, 0, 0, 0.15);
 
-  --text-primary: #f0f4f8;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #1a202c;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
 
-  --accent-blue: #3b82f6;
-  --accent-blue-glow: rgba(59, 130, 246, 0.25);
-  --accent-purple: #8b5cf6;
-  --accent-purple-glow: rgba(139, 92, 246, 0.25);
-  --accent-emerald: #10b981;
-  --accent-emerald-glow: rgba(16, 185, 129, 0.2);
-  --accent-amber: #f59e0b;
-  --accent-amber-glow: rgba(245, 158, 11, 0.2);
-  --accent-rose: #f43f5e;
-  --accent-rose-glow: rgba(244, 63, 94, 0.2);
-  --accent-cyan: #06b6d4;
+  --accent-blue: #2563eb;
+  --accent-blue-glow: rgba(37, 99, 235, 0.15);
+  --accent-purple: #7c3aed;
+  --accent-purple-glow: rgba(124, 58, 237, 0.12);
+  --accent-emerald: #059669;
+  --accent-emerald-glow: rgba(5, 150, 105, 0.12);
+  --accent-amber: #d97706;
+  --accent-amber-glow: rgba(217, 119, 6, 0.12);
+  --accent-rose: #e11d48;
+  --accent-rose-glow: rgba(225, 29, 72, 0.12);
+  --accent-cyan: #0891b2;
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
 
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
-  --shadow-glow-blue: 0 0 20px var(--accent-blue-glow);
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-glow-blue: 0 0 0 3px var(--accent-blue-glow);
 
   --transition-fast: 0.15s ease;
   --transition-base: 0.25s ease;
@@ -70,9 +70,9 @@ body::before {
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(59, 130, 246, 0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(139, 92, 246, 0.06) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16, 185, 129, 0.04) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(37, 99, 235, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(124, 58, 237, 0.03) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(5, 150, 105, 0.02) 0%, transparent 60%);
   pointer-events: none;
   z-index: 0;
 }
@@ -101,12 +101,12 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.15);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 /* ---------- Layout ---------- */
@@ -120,7 +120,7 @@ a:hover {
 
 /* ---------- Header ---------- */
 .header {
-  background: rgba(10, 14, 26, 0.85);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border-glass);
@@ -650,7 +650,7 @@ a:hover {
   align-items: center;
   gap: 10px;
   padding: 8px 12px; */
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.02);
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -683,7 +683,7 @@ a:hover {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(0, 0, 0, 0.02);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -719,7 +719,7 @@ a:hover {
 }
 
 .data-table thead th {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
   color: var(--text-muted);
   font-weight: 600;
   font-size: 0.75rem;
@@ -745,7 +745,7 @@ a:hover {
 
 .data-table tbody td {
   padding: 10px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
   color: var(--text-secondary);
   vertical-align: middle;
 }
@@ -807,7 +807,7 @@ a:hover {
 }
 
 .cypher-block {
-  background: rgba(0, 0, 0, 0.35);
+  background: #f0f2f5;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
   margin-bottom: 1rem;
@@ -819,7 +819,7 @@ a:hover {
   justify-content: space-between;
   align-items: center;
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.03);
   border-bottom: 1px solid var(--border-glass);
 }
 
@@ -861,7 +861,7 @@ a:hover {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.82rem;
   line-height: 1.7;
-  color: #e2e8f0;
+  color: #334155;
   white-space: pre-wrap;
   word-break: break-all;
   overflow-x: auto;
@@ -871,29 +871,29 @@ a:hover {
 
 /* Cypher syntax highlighting */
 .cy-keyword {
-  color: #c084fc;
+  color: #7c3aed;
   font-weight: 600;
 }
 
 .cy-label {
-  color: #34d399;
+  color: #059669;
 }
 
 .cy-prop {
-  color: #fbbf24;
+  color: #b45309;
 }
 
 .cy-string {
-  color: #67e8f9;
+  color: #0891b2;
 }
 
 .cy-comment {
-  color: #64748b;
+  color: #94a3b8;
   font-style: italic;
 }
 
 .cy-rel {
-  color: #fb923c;
+  color: #ea580c;
 }
 
 /* ---------- Cypher search results ---------- */
@@ -1101,7 +1101,7 @@ a:hover {
 
 .graph-select {
   flex: 1;
-  background: rgba(0, 0, 0, 0.3);
+  background: #ffffff;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
@@ -1125,7 +1125,7 @@ a:hover {
 }
 
 .graph-select option {
-  background: #1a1a2e;
+  background: #ffffff;
   color: var(--text-primary);
 }
 
@@ -1175,7 +1175,7 @@ a:hover {
 
 .graph-textarea {
   width: 100%;
-  background: rgba(0, 0, 0, 0.4);
+  background: #f0f2f5;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
@@ -1256,7 +1256,7 @@ a:hover {
 .graph-container {
   width: 100%;
   height: 600px;
-  background: rgba(0, 0, 0, 0.3);
+  background: #ffffff;
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -1322,8 +1322,8 @@ a:hover {
 }
 
 .cypher-viz-btn:hover {
-  background: rgba(139, 92, 246, 0.35);
-  color: #d8b4fe;
+  background: rgba(124, 58, 237, 0.15);
+  color: var(--accent-purple);
 }
 
 /* ---------- Search Graph Button (in search bars) ---------- */
@@ -1375,8 +1375,8 @@ a:hover {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   padding: 4px 10px;
   border-radius: 100px;
   font-size: 0.72rem;
@@ -1388,7 +1388,7 @@ a:hover {
 }
 
 .db-status-badge:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .status-dot {
